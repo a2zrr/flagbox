@@ -27,6 +27,6 @@ target/
 # Logs
 *.log
 
-# Local AI tooling (never committed)
+# Local editor settings (never committed)
 .claude/
 CLAUDE.md

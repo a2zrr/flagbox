@@ -3,18 +3,22 @@ package dev.a2zrr.flagbox.support;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Shared base for integration tests. One PostgreSQL 16 container is started
- * per test JVM and reused by every subclass.
+ * Shared base for integration tests.
+ *
+ * <p>The container is started once per test JVM and is deliberately not stopped
+ * after each test class: Spring caches application contexts across classes, and
+ * a cached context keeps pointing at this container's connection details.
+ * Testcontainers' Ryuk reaper removes it when the JVM exits.
  */
-@Testcontainers
 @ActiveProfiles("test")
 public abstract class PostgresIntegrationTest {
 
-    @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
+
+    static {
+        POSTGRES.start();
+    }
 }

@@ -1,0 +1,5 @@
+# Keep line endings as LF in the repository and in every checkout, so shell scripts
+# (mvnw, entrypoints) run inside Linux containers even when cloned on Windows.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf

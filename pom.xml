@@ -13,7 +13,7 @@
 
     <groupId>dev.a2zrr</groupId>
     <artifactId>flagbox</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>FlagBox</name>
     <description>Feature flags REST API with percentage rollouts and targeting rules</description>
     <url>https://github.com/a2zrr/flagbox</url>

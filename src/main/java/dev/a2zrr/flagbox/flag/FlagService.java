@@ -13,6 +13,7 @@ import dev.a2zrr.flagbox.common.error.ConflictException;
 import dev.a2zrr.flagbox.common.error.ResourceNotFoundException;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.environment.EnvironmentRepository;
+import dev.a2zrr.flagbox.evaluation.FlagSnapshotCache;
 import dev.a2zrr.flagbox.project.Project;
 import java.util.List;
 import java.util.Map;
@@ -31,13 +32,15 @@ public class FlagService {
     private final FlagConfigRepository configs;
     private final EnvironmentRepository environments;
     private final AuditService audit;
+    private final FlagSnapshotCache snapshots;
 
     public FlagService(FlagRepository flags, FlagConfigRepository configs,
-                       EnvironmentRepository environments, AuditService audit) {
+                       EnvironmentRepository environments, AuditService audit, FlagSnapshotCache snapshots) {
         this.flags = flags;
         this.configs = configs;
         this.environments = environments;
         this.audit = audit;
+        this.snapshots = snapshots;
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +69,7 @@ public class FlagService {
         }
         audit.record(AuditEntityType.FLAG, project.getId(), null, key, AuditAction.CREATE, actor,
             null, flagSnapshot(flag));
+        snapshots.evictAfterCommit(project.getId());
         return flag;
     }
 
@@ -86,6 +90,7 @@ public class FlagService {
         if (!before.equals(after)) {
             audit.record(AuditEntityType.FLAG, project.getId(), null, key, AuditAction.UPDATE, actor,
                 before, after);
+            snapshots.evictAfterCommit(project.getId());
         }
         return flag;
     }
@@ -96,6 +101,7 @@ public class FlagService {
         audit.record(AuditEntityType.FLAG, project.getId(), null, key, AuditAction.DELETE, actor,
             flagSnapshot(flag), null);
         flags.delete(flag);
+        snapshots.evictAfterCommit(project.getId());
     }
 
     /** Gives an environment a disabled config for every flag in its project. Used when an environment is created. */
@@ -144,6 +150,7 @@ public class FlagService {
         if (!before.equals(after)) {
             audit.record(AuditEntityType.FLAG_CONFIG, project.getId(), config.getEnvironment().getId(),
                 flagKey, AuditAction.UPDATE, actor, before, after);
+            snapshots.evictAfterCommit(project.getId());
         }
         return config;
     }

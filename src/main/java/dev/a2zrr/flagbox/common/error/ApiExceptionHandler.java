@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -65,7 +67,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HandlerMethodValidationException.class)
     ResponseEntity<ProblemDetail> handleParameterValidation(HandlerMethodValidationException ex) {
-        List<Map<String, String>> errors = ex.getAllValidationResults().stream()
+        List<Map<String, String>> errors = ex.getParameterValidationResults().stream()
             .flatMap(result -> result.getResolvableErrors().stream().map(error -> Map.of(
                 "field", Objects.requireNonNullElse(result.getMethodParameter().getParameterName(), "parameter"),
                 "message", Objects.requireNonNullElse(error.getDefaultMessage(), "is invalid"))))
@@ -84,6 +86,16 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid request", ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ProblemDetail> handleUnauthenticated(AuthenticationException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Unauthorized", "Missing, malformed, unknown or revoked API key");
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleForbidden(AccessDeniedException ex) {
+        return problem(HttpStatus.FORBIDDEN, "Forbidden", "This API key is not allowed to perform this action");
     }
 
     @ExceptionHandler(Exception.class)

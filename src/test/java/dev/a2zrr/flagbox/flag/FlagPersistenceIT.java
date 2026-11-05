@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.a2zrr.flagbox.audit.AuditService;
+import dev.a2zrr.flagbox.evaluation.FlagSnapshotCache;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.environment.EnvironmentRepository;
 import dev.a2zrr.flagbox.project.Project;
@@ -22,7 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import({ProjectService.class, AuditService.class})
+@Import({ProjectService.class, AuditService.class, FlagSnapshotCache.class})
 class FlagPersistenceIT extends PostgresIntegrationTest {
 
     @Autowired

@@ -10,6 +10,7 @@ import dev.a2zrr.flagbox.common.error.ConflictException;
 import dev.a2zrr.flagbox.common.error.ResourceNotFoundException;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.environment.EnvironmentRepository;
+import dev.a2zrr.flagbox.evaluation.FlagSnapshotCache;
 import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,11 +28,14 @@ public class ProjectService {
     private final ProjectRepository projects;
     private final EnvironmentRepository environments;
     private final AuditService audit;
+    private final FlagSnapshotCache snapshots;
 
-    public ProjectService(ProjectRepository projects, EnvironmentRepository environments, AuditService audit) {
+    public ProjectService(ProjectRepository projects, EnvironmentRepository environments, AuditService audit,
+                          FlagSnapshotCache snapshots) {
         this.projects = projects;
         this.environments = environments;
         this.audit = audit;
+        this.snapshots = snapshots;
     }
 
     /**
@@ -87,6 +91,7 @@ public class ProjectService {
         audit.record(AuditEntityType.PROJECT, project.getId(), null, key, AuditAction.DELETE, actor,
             snapshot(project), null);
         projects.delete(project);
+        snapshots.evictAfterCommit(project.getId());
     }
 
     private static Map<String, Object> snapshot(Project project) {

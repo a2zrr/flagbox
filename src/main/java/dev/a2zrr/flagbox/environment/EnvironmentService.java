@@ -8,6 +8,7 @@ import dev.a2zrr.flagbox.audit.AuditService;
 import dev.a2zrr.flagbox.common.Slug;
 import dev.a2zrr.flagbox.common.error.ConflictException;
 import dev.a2zrr.flagbox.common.error.ResourceNotFoundException;
+import dev.a2zrr.flagbox.evaluation.FlagSnapshotCache;
 import dev.a2zrr.flagbox.flag.FlagService;
 import dev.a2zrr.flagbox.project.Project;
 import org.springframework.data.domain.Page;
@@ -21,11 +22,14 @@ public class EnvironmentService {
     private final EnvironmentRepository environments;
     private final FlagService flags;
     private final AuditService audit;
+    private final FlagSnapshotCache snapshots;
 
-    public EnvironmentService(EnvironmentRepository environments, FlagService flags, AuditService audit) {
+    public EnvironmentService(EnvironmentRepository environments, FlagService flags, AuditService audit,
+                              FlagSnapshotCache snapshots) {
         this.environments = environments;
         this.flags = flags;
         this.audit = audit;
+        this.snapshots = snapshots;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +54,7 @@ public class EnvironmentService {
         flags.ensureConfigsFor(environment);
         audit.record(AuditEntityType.ENVIRONMENT, project.getId(), environment.getId(), key,
             AuditAction.CREATE, actor, null, fields("name", environment.getName()));
+        snapshots.evictAfterCommit(project.getId());
         return environment;
     }
 
@@ -73,5 +78,6 @@ public class EnvironmentService {
         audit.record(AuditEntityType.ENVIRONMENT, project.getId(), environment.getId(), key,
             AuditAction.DELETE, actor, fields("name", environment.getName()), null);
         environments.delete(environment);
+        snapshots.evictAfterCommit(project.getId());
     }
 }

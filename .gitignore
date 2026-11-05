@@ -1,0 +1,32 @@
+# Build output
+target/
+*.class
+*.jar
+*.war
+
+# Maven wrapper distribution cache
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+.DS_Store
+
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+*.local.yml
+
+# Logs
+*.log
+
+# Local AI tooling (never committed)
+.claude/
+CLAUDE.md

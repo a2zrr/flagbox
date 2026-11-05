@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,6 +18,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -73,6 +75,20 @@ public class ApiExceptionHandler {
                 "message", Objects.requireNonNullElse(error.getDefaultMessage(), "is invalid"))))
             .toList();
         return validationProblem(errors);
+    }
+
+    /** A query parameter that is not a number, for example page=first. */
+    @ExceptionHandler(TypeMismatchException.class)
+    ResponseEntity<ProblemDetail> handleTypeMismatch(TypeMismatchException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid request",
+            "Invalid value for '" + ex.getPropertyName() + "'");
+    }
+
+    /** A required query parameter that is missing. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ProblemDetail> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid request",
+            "Missing required parameter '" + ex.getParameterName() + "'");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

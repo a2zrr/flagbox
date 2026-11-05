@@ -39,11 +39,26 @@ public class Project {
 
     public Project(String key, String name, String description) {
         Slug.requireValid(key, "key");
-        if (name == null || name.isBlank() || name.length() > 120) {
-            throw new IllegalArgumentException("name must be 1 to 120 characters");
-        }
+        requireName(name);
         this.key = key;
         this.name = name.strip();
         this.description = description;
+    }
+
+    /** Updates the given fields. A null argument leaves that field unchanged; a blank description clears it. */
+    public void updateDetails(String name, String description) {
+        if (name != null) {
+            requireName(name);
+            this.name = name.strip();
+        }
+        if (description != null) {
+            this.description = description.isBlank() ? null : description;
+        }
+    }
+
+    private static void requireName(String name) {
+        if (name == null || name.isBlank() || name.length() > 120) {
+            throw new IllegalArgumentException("name must be 1 to 120 characters");
+        }
     }
 }

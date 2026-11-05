@@ -3,6 +3,7 @@ package dev.a2zrr.flagbox.apikey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import dev.a2zrr.flagbox.audit.AuditService;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.environment.EnvironmentRepository;
 import dev.a2zrr.flagbox.project.Project;
@@ -19,7 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import(ProjectService.class)
+@Import({ProjectService.class, AuditService.class})
 class ApiKeyPersistenceIT extends PostgresIntegrationTest {
 
     @Autowired
@@ -33,9 +34,9 @@ class ApiKeyPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void storesOnlyTheHashAndFindsTheKeyByIt() {
-        Project project = projectService.create("checkout", "Checkout", null);
+        Project project = projectService.create("checkout", "Checkout", null, "test");
         Environment production = environments.findByProjectAndKey(project, "production").orElseThrow();
-        String raw = "fbx_admin_" + "s3cr3t-value";
+        String raw = "fbx_admin_s3cr3t-value";
         String hash = ApiKeyHasher.sha256Hex(raw);
 
         apiKeys.saveAndFlush(new ApiKey(project, production, ApiKeyType.ADMIN, "CI admin", "fbx_admin_s3cr3t", hash));
@@ -49,7 +50,7 @@ class ApiKeyPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void revokingAKeyMarksItInactiveAndKeepsTheFirstRevocationTime() {
-        Project project = projectService.create("checkout", "Checkout", null);
+        Project project = projectService.create("checkout", "Checkout", null, "test");
         Environment production = environments.findByProjectAndKey(project, "production").orElseThrow();
         ApiKey key = apiKeys.saveAndFlush(new ApiKey(project, production, ApiKeyType.CLIENT, "web",
             "fbx_client_abc", ApiKeyHasher.sha256Hex("fbx_client_abc-secret")));
@@ -64,7 +65,7 @@ class ApiKeyPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void keyHashIsUnique() {
-        Project project = projectService.create("checkout", "Checkout", null);
+        Project project = projectService.create("checkout", "Checkout", null, "test");
         Environment production = environments.findByProjectAndKey(project, "production").orElseThrow();
         String hash = ApiKeyHasher.sha256Hex("same-raw-key");
 

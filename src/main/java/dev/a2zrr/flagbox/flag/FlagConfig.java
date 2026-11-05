@@ -23,14 +23,22 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /**
- * How one flag behaves in one environment.
+ * How one flag behaves in one environment: {@code enabled}, an ordered list of
+ * {@code rules}, and a {@code rolloutPercentage}.
  *
- * <ul>
- *   <li>{@code enabled}: when false, the flag serves {@code false} to everyone.</li>
- *   <li>{@code rules}: checked in order; the first matching rule decides the value.</li>
- *   <li>{@code rolloutPercentage}: users whose stable bucket is below this value get {@code true}.</li>
- *   <li>{@code defaultValue}: served to enabled users that no rule or rollout bucket selects.</li>
- * </ul>
+ * <p>The server never serves a fallback value. When a flag is not found, the
+ * calling application uses its own default.
+ *
+ * <p>Evaluation order (implemented in the evaluation engine):
+ * <ol>
+ *   <li>flag not found: FLAG_NOT_FOUND, the client uses its own fallback</li>
+ *   <li>flag disabled: {@code false}, FLAG_DISABLED</li>
+ *   <li>rules in order, first match wins: user in an off-list gives {@code false}
+ *       (USER_DENIED); user in an on-list gives {@code true} (USER_ALLOWED);
+ *       an attribute rule that matches serves its value (RULE_MATCH)</li>
+ *   <li>rollout: stable bucket below {@code rolloutPercentage} gives {@code true}
+ *       (ROLLOUT_IN), otherwise {@code false} (ROLLOUT_OUT)</li>
+ * </ol>
  */
 @Entity
 @Table(name = "flag_configs")
@@ -38,15 +46,18 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FlagConfig {
 
+    public static final int MAX_RULES = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER: responses expose the flag and environment keys after the transaction ends.
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "flag_id", nullable = false, updatable = false)
     private Flag flag;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "environment_id", nullable = false, updatable = false)
     private Environment environment;
 
@@ -55,9 +66,6 @@ public class FlagConfig {
 
     @Column(name = "rollout_percentage", nullable = false)
     private int rolloutPercentage = 100;
-
-    @Column(name = "default_value", nullable = false)
-    private boolean defaultValue;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
@@ -71,7 +79,7 @@ public class FlagConfig {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    /** Creates a disabled config with 100% rollout, no rules and a default value of false. */
+    /** Creates a disabled config with 100% rollout and no rules. */
     public FlagConfig(Flag flag, Environment environment) {
         this.flag = Objects.requireNonNull(flag, "flag is required");
         this.environment = Objects.requireNonNull(environment, "environment is required");
@@ -79,10 +87,6 @@ public class FlagConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public void setDefaultValue(boolean defaultValue) {
-        this.defaultValue = defaultValue;
     }
 
     public void setRolloutPercentage(int rolloutPercentage) {
@@ -95,6 +99,12 @@ public class FlagConfig {
     /** Replaces the rule list. Order matters: the first matching rule wins. */
     public void setRules(List<TargetingRule> rules) {
         Objects.requireNonNull(rules, "rules is required");
+        if (rules.size() > MAX_RULES) {
+            throw new IllegalArgumentException("a flag config may contain at most " + MAX_RULES + " rules");
+        }
+        if (rules.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("rules must not contain null entries");
+        }
         this.rules = List.copyOf(rules);
     }
 }

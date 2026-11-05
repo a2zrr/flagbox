@@ -47,11 +47,20 @@ public class Environment {
             throw new IllegalArgumentException("project is required");
         }
         Slug.requireValid(key, "key");
-        if (name == null || name.isBlank() || name.length() > 120) {
-            throw new IllegalArgumentException("name must be 1 to 120 characters");
-        }
+        requireName(name);
         this.project = project;
         this.key = key;
         this.name = name.strip();
+    }
+
+    public void rename(String name) {
+        requireName(name);
+        this.name = name.strip();
+    }
+
+    private static void requireName(String name) {
+        if (name == null || name.isBlank() || name.length() > 120) {
+            throw new IllegalArgumentException("name must be 1 to 120 characters");
+        }
     }
 }

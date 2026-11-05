@@ -3,6 +3,7 @@ package dev.a2zrr.flagbox.flag;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import dev.a2zrr.flagbox.audit.AuditService;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.environment.EnvironmentRepository;
 import dev.a2zrr.flagbox.project.Project;
@@ -21,7 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import(ProjectService.class)
+@Import({ProjectService.class, AuditService.class})
 class FlagPersistenceIT extends PostgresIntegrationTest {
 
     @Autowired
@@ -44,14 +45,13 @@ class FlagPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void persistsTargetingRulesAsOrderedJsonAndReadsThemBack() {
-        Project project = projectService.create("checkout", "Checkout", null);
+        Project project = projectService.create("checkout", "Checkout", null, "test");
         Environment production = environments.findByProjectAndKey(project, "production").orElseThrow();
         Flag flag = flags.saveAndFlush(new Flag(project, "new-checkout", "New checkout", "Redesigned flow"));
 
         FlagConfig config = new FlagConfig(flag, production);
         config.setEnabled(true);
         config.setRolloutPercentage(30);
-        config.setDefaultValue(false);
         config.setRules(List.of(
             new UserListRule(List.of("beta-user-1"), true),
             new AttributeRule("country", AttributeOperator.IN, List.of("FR", "DZ"), true),
@@ -71,8 +71,8 @@ class FlagPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void flagKeyIsUniquePerProjectButCanRepeatAcrossProjects() {
-        Project checkout = projectService.create("checkout", "Checkout", null);
-        Project search = projectService.create("search", "Search", null);
+        Project checkout = projectService.create("checkout", "Checkout", null, "test");
+        Project search = projectService.create("search", "Search", null, "test");
 
         flags.saveAndFlush(new Flag(checkout, "beta", "Beta", null));
         flags.saveAndFlush(new Flag(search, "beta", "Beta", null));
@@ -84,7 +84,7 @@ class FlagPersistenceIT extends PostgresIntegrationTest {
 
     @Test
     void databaseRejectsRolloutOutsideZeroToHundred() {
-        Project project = projectService.create("checkout", "Checkout", null);
+        Project project = projectService.create("checkout", "Checkout", null, "test");
         Environment production = environments.findByProjectAndKey(project, "production").orElseThrow();
         Flag flag = flags.saveAndFlush(new Flag(project, "new-checkout", "New checkout", null));
         FlagConfig config = configs.saveAndFlush(new FlagConfig(flag, production));

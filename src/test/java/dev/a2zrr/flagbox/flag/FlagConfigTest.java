@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import dev.a2zrr.flagbox.environment.Environment;
 import dev.a2zrr.flagbox.project.Project;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,7 +24,6 @@ class FlagConfigTest {
 
         assertThat(config.isEnabled()).isFalse();
         assertThat(config.getRolloutPercentage()).isEqualTo(100);
-        assertThat(config.isDefaultValue()).isFalse();
         assertThat(config.getRules()).isEmpty();
     }
 
@@ -54,5 +54,26 @@ class FlagConfigTest {
         source.clear();
 
         assertThat(config.getRules()).hasSize(1);
+    }
+
+    @Test
+    void rejectsMoreThanMaxRules() {
+        FlagConfig config = new FlagConfig(flag, production);
+        List<TargetingRule> tooMany = Collections.nCopies(FlagConfig.MAX_RULES + 1,
+            new UserListRule(List.of("user-1"), true));
+
+        assertThatThrownBy(() -> config.setRules(tooMany))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("at most 100 rules");
+    }
+
+    @Test
+    void rejectsNullRuleEntries() {
+        FlagConfig config = new FlagConfig(flag, production);
+        List<TargetingRule> withNull = new ArrayList<>();
+        withNull.add(null);
+
+        assertThatThrownBy(() -> config.setRules(withNull))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 }

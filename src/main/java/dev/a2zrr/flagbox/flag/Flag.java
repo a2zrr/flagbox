@@ -67,9 +67,7 @@ public class Flag {
             throw new IllegalArgumentException("project is required");
         }
         Slug.requireValid(key, "key");
-        if (name == null || name.isBlank() || name.length() > 120) {
-            throw new IllegalArgumentException("name must be 1 to 120 characters");
-        }
+        requireName(name);
         this.project = project;
         this.key = key;
         this.name = name.strip();
@@ -78,12 +76,15 @@ public class Flag {
         this.archived = false;
     }
 
+    /** Updates the given fields. A null argument leaves that field unchanged; a blank description clears it. */
     public void updateDetails(String name, String description) {
-        if (name == null || name.isBlank() || name.length() > 120) {
-            throw new IllegalArgumentException("name must be 1 to 120 characters");
+        if (name != null) {
+            requireName(name);
+            this.name = name.strip();
         }
-        this.name = name.strip();
-        this.description = description;
+        if (description != null) {
+            this.description = description.isBlank() ? null : description;
+        }
     }
 
     public void archive() {
@@ -92,5 +93,11 @@ public class Flag {
 
     public void restore() {
         this.archived = false;
+    }
+
+    private static void requireName(String name) {
+        if (name == null || name.isBlank() || name.length() > 120) {
+            throw new IllegalArgumentException("name must be 1 to 120 characters");
+        }
     }
 }

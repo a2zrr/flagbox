@@ -8,6 +8,8 @@ import dev.a2zrr.flagbox.common.security.ProblemJson;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import io.github.bucket4j.TimeMeter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -28,9 +30,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
+    /** The rate limiter's time source. Tests replace it with a frozen clock. */
+    @Bean
+    TimeMeter rateLimitClock() {
+        return TimeMeter.SYSTEM_NANOTIME;
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ApiKeyAuthenticator authenticator,
-                                            ObjectMapper mapper) throws Exception {
+                                            ObjectMapper mapper, TimeMeter rateLimitClock,
+                                            @Value("${flagbox.rate-limit.evaluations-per-second:100}")
+                                            int evaluationsPerSecond) throws Exception {
         AuthenticationEntryPoint unauthenticated = (request, response, ex) ->
             writeUnauthorized(request, response, mapper);
         AccessDeniedHandler forbidden = (request, response, ex) ->
@@ -45,7 +55,7 @@ public class SecurityConfig {
                 .accessDeniedHandler(forbidden))
             .addFilterBefore(new ApiKeyAuthenticationFilter(authenticator, unauthenticated),
                 UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(new EvaluationRateLimitFilter(mapper),
+            .addFilterAfter(new EvaluationRateLimitFilter(mapper, rateLimitClock, evaluationsPerSecond),
                 ApiKeyAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",

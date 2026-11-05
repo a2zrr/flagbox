@@ -15,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 class EvaluationRateLimitFilterTest {
 
+    private static final int LIMIT = 100;
+
     /** A clock the test moves by hand, so the refill is exact. */
     static final class ManualClock implements TimeMeter {
         private long nanos;
@@ -35,7 +37,7 @@ class EvaluationRateLimitFilterTest {
     }
 
     private final ManualClock clock = new ManualClock();
-    private final EvaluationRateLimitFilter filter = new EvaluationRateLimitFilter(new ObjectMapper(), clock);
+    private final EvaluationRateLimitFilter filter = new EvaluationRateLimitFilter(new ObjectMapper(), clock, LIMIT);
 
     @BeforeEach
     void setUp() {
@@ -48,8 +50,8 @@ class EvaluationRateLimitFilterTest {
     }
 
     @Test
-    void allowsOneHundredEvaluationsPerSecondThenRejectsWithRetryAfter() throws Exception {
-        for (int i = 0; i < EvaluationRateLimitFilter.REQUESTS_PER_SECOND; i++) {
+    void allowsTheConfiguredNumberOfEvaluationsThenRejectsWithRetryAfter() throws Exception {
+        for (int i = 0; i < LIMIT; i++) {
             assertThat(evaluate(1L).getStatus()).isEqualTo(200);
         }
 
@@ -63,7 +65,7 @@ class EvaluationRateLimitFilterTest {
 
     @Test
     void capacityReturnsAfterTheWindowPasses() throws Exception {
-        for (int i = 0; i < EvaluationRateLimitFilter.REQUESTS_PER_SECOND; i++) {
+        for (int i = 0; i < LIMIT; i++) {
             evaluate(1L);
         }
         assertThat(evaluate(1L).getStatus()).isEqualTo(429);
@@ -75,7 +77,7 @@ class EvaluationRateLimitFilterTest {
 
     @Test
     void eachKeyHasItsOwnBucket() throws Exception {
-        for (int i = 0; i < EvaluationRateLimitFilter.REQUESTS_PER_SECOND; i++) {
+        for (int i = 0; i < LIMIT; i++) {
             evaluate(1L);
         }
         assertThat(evaluate(1L).getStatus()).isEqualTo(429);
@@ -86,7 +88,7 @@ class EvaluationRateLimitFilterTest {
     @Test
     void managementEndpointsAreNotLimited() throws Exception {
         authenticate(1L);
-        for (int i = 0; i < EvaluationRateLimitFilter.REQUESTS_PER_SECOND * 2; i++) {
+        for (int i = 0; i < LIMIT * 2; i++) {
             MockHttpServletResponse response = new MockHttpServletResponse();
             filter.doFilter(new MockHttpServletRequest("GET", "/api/v1/projects"), response, new MockFilterChain());
             assertThat(response.getStatus()).isEqualTo(200);
@@ -100,6 +102,13 @@ class EvaluationRateLimitFilterTest {
         filter.doFilter(new MockHttpServletRequest("POST", "/api/v1/evaluate"), response, new MockFilterChain());
 
         assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void rejectsANonPositiveLimit() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> new EvaluationRateLimitFilter(new ObjectMapper(), clock, 0))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     private MockHttpServletResponse evaluate(long keyId) throws Exception {

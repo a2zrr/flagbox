@@ -2,3 +2,5 @@
 flagbox:
   bootstrap:
     admin-key: fbx_admin_test-bootstrap-0123456789abcdefghijk
+  rate-limit:
+    evaluations-per-second: 3

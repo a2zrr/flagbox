@@ -24,6 +24,9 @@ flagbox:
     # Global admin key registered on first startup. Must start with fbx_admin_.
     # Ignored once a global admin key exists.
     admin-key: ${FLAGBOX_BOOTSTRAP_ADMIN_KEY:}
+  rate-limit:
+    # Evaluation requests per second allowed for each API key.
+    evaluations-per-second: ${FLAGBOX_RATE_LIMIT_EVALUATIONS_PER_SECOND:100}
 
 server:
   port: ${PORT:8080}

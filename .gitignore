@@ -26,7 +26,3 @@ target/
 
 # Logs
 *.log
-
-# Local editor settings (never committed)
-.claude/
-CLAUDE.md

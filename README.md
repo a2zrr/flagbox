@@ -62,7 +62,7 @@ $ADMIN = 'fbx_admin_' + (-join ((48..57 + 65..90 + 97..122) | Get-Random -Count 
 
 **2. Start FlagBox and PostgreSQL**
 
-The first build takes a few minutes.
+The first build takes a few minutes. Port 8080 must be free.
 
 ```bash
 docker compose -f docker-compose.full.yml up -d --build
@@ -74,6 +74,8 @@ docker compose -f docker-compose.full.yml up -d --build
 
 **3. Check that it is up**
 
+Wait about 30 seconds after the containers start. If you get "connection refused", wait a bit longer and try again.
+
 ```bash
 curl -s http://localhost:8080/actuator/health
 ```
@@ -83,6 +85,8 @@ Invoke-RestMethod http://localhost:8080/actuator/health
 ```
 
 You should see `"status":"UP"`.
+
+Keep the same terminal open for the rest of the quick start. The steps use `$ADMIN`, `$headers` and `$CLIENT` (or `$client`), which are set in that session.
 
 **4. Create a project**
 
@@ -149,8 +153,8 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/evaluate -Heade
   -ContentType 'application/json' -Body '{"flagKey":"new-checkout","context":{"userId":"user-42"}}'
 ```
 
-The answer looks like `{"flagKey":"new-checkout","value":true,"reason":"ROLLOUT_IN"}`.
-Change `user-42` to other IDs and about 30% of them will get `true`, the same ones every time.
+For `user-42` the answer is `{"flagKey":"new-checkout","value":false,"reason":"ROLLOUT_OUT"}`, because that user is outside the 30%.
+Try `user-3`: it is inside the 30%, so the answer is `true` with `ROLLOUT_IN`. Each user always gets the same answer.
 
 To stop everything: `docker compose -f docker-compose.full.yml down`.
 

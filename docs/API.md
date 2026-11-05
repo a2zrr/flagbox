@@ -276,8 +276,10 @@ curl -s -X POST http://localhost:8080/api/v1/evaluate -H "X-API-Key: $CLIENT" \
 ```
 
 ```json
-{ "flagKey": "new-checkout", "value": true, "reason": "ROLLOUT_IN" }
+{ "flagKey": "new-checkout", "value": false, "reason": "ROLLOUT_OUT" }
 ```
+
+This is the answer for `user-42`, which is outside the 30% rollout. `user-3` is inside it and gets `true` with `ROLLOUT_IN`.
 
 With an attribute:
 
@@ -303,7 +305,7 @@ curl -s -X POST http://localhost:8080/api/v1/evaluate/all -H "X-API-Key: $CLIENT
 ```
 
 ```json
-{ "flags": [ { "flagKey": "new-checkout", "value": true, "reason": "ROLLOUT_IN" } ] }
+{ "flags": [ { "flagKey": "new-checkout", "value": false, "reason": "ROLLOUT_OUT" } ] }
 ```
 
 ## Operations

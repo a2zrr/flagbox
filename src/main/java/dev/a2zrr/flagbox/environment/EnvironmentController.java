@@ -1,5 +1,6 @@
 package dev.a2zrr.flagbox.environment;
 
+import dev.a2zrr.flagbox.apikey.AccessGuard;
 import dev.a2zrr.flagbox.common.web.Actors;
 import dev.a2zrr.flagbox.common.web.PageResponse;
 import dev.a2zrr.flagbox.project.Project;
@@ -32,24 +33,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/projects/{project}/environments")
-@Tag(name = "Environments", description = "Environments such as development or production. Each has its own flag configs and API keys.")
+@Tag(name = "Environments", description = "Environments such as development or production. Each has its own flag configs and API keys. Creating, changing and deleting environments needs a global admin key.")
 public class EnvironmentController {
 
     private static final String SLUG = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 
     private final ProjectService projects;
     private final EnvironmentService environments;
+    private final AccessGuard access;
 
-    public EnvironmentController(ProjectService projects, EnvironmentService environments) {
+    public EnvironmentController(ProjectService projects, EnvironmentService environments, AccessGuard access) {
         this.projects = projects;
         this.environments = environments;
+        this.access = access;
     }
 
     @PostMapping
-    @Operation(summary = "Create an environment", description = "Creates a disabled config for every existing flag.")
+    @Operation(summary = "Create an environment", description = "Creates a disabled config for every existing flag. Global admin key only.")
     public ResponseEntity<EnvironmentResponse> create(@PathVariable("project") String projectKey,
                                                       @Valid @RequestBody CreateEnvironmentRequest request,
                                                       Authentication authentication) {
+        access.requireGlobal(authentication);
         Project project = projects.get(projectKey);
         Environment environment = environments.create(project, request.key(), request.name(),
             Actors.nameOf(authentication));
@@ -62,8 +66,10 @@ public class EnvironmentController {
     @Operation(summary = "List environments", description = "Paginated, sorted by key.")
     public PageResponse<EnvironmentResponse> list(
             @PathVariable("project") String projectKey,
+            Authentication authentication,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        access.requireProjectAccess(authentication, projectKey);
         Project project = projects.get(projectKey);
         return PageResponse.of(
             environments.list(project, PageRequest.of(page, size, Sort.by("key"))),
@@ -73,16 +79,19 @@ public class EnvironmentController {
     @GetMapping("/{environment}")
     @Operation(summary = "Get an environment")
     public EnvironmentResponse get(@PathVariable("project") String projectKey,
-                                   @PathVariable("environment") String key) {
+                                   @PathVariable("environment") String key,
+                                   Authentication authentication) {
+        access.requireProjectAccess(authentication, projectKey);
         return EnvironmentResponse.from(environments.get(projects.get(projectKey), key));
     }
 
     @PatchMapping("/{environment}")
-    @Operation(summary = "Rename an environment", description = "The key cannot change.")
+    @Operation(summary = "Rename an environment", description = "The key cannot change. Global admin key only.")
     public EnvironmentResponse update(@PathVariable("project") String projectKey,
                                       @PathVariable("environment") String key,
                                       @Valid @RequestBody UpdateEnvironmentRequest request,
                                       Authentication authentication) {
+        access.requireGlobal(authentication);
         Project project = projects.get(projectKey);
         return EnvironmentResponse.from(environments.update(project, key, request.name(),
             Actors.nameOf(authentication)));
@@ -90,10 +99,11 @@ public class EnvironmentController {
 
     @DeleteMapping("/{environment}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete an environment", description = "Also deletes its flag configs and API keys.")
+    @Operation(summary = "Delete an environment", description = "Also deletes its flag configs and API keys. Global admin key only.")
     public void delete(@PathVariable("project") String projectKey,
                        @PathVariable("environment") String key,
                        Authentication authentication) {
+        access.requireGlobal(authentication);
         environments.delete(projects.get(projectKey), key, Actors.nameOf(authentication));
     }
 

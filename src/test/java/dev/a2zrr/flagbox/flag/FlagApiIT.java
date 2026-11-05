@@ -13,7 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import dev.a2zrr.flagbox.support.AdminKeyTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@WithMockUser(username = "admin", roles = "ADMIN")
+@Import(AdminKeyTestConfig.class)
 class FlagApiIT extends PostgresIntegrationTest {
 
     private static final MediaType JSON = MediaType.APPLICATION_JSON;
@@ -37,7 +38,7 @@ class FlagApiIT extends PostgresIntegrationTest {
     @BeforeEach
     @AfterEach
     void resetTables() {
-        jdbc.execute("TRUNCATE audit_logs, projects RESTART IDENTITY CASCADE");
+        jdbc.execute("DELETE FROM audit_logs; DELETE FROM projects");
     }
 
     @Test
@@ -160,7 +161,7 @@ class FlagApiIT extends PostgresIntegrationTest {
             .andExpect(jsonPath("$.totalElements").value(2))
             .andExpect(jsonPath("$.items[0].entityType").value("FLAG_CONFIG"))
             .andExpect(jsonPath("$.items[0].action").value("UPDATE"))
-            .andExpect(jsonPath("$.items[0].actor").value("admin"))
+            .andExpect(jsonPath("$.items[0].actor").value("bootstrap-admin"))
             .andExpect(jsonPath("$.items[0].oldValue.enabled").value(false))
             .andExpect(jsonPath("$.items[0].newValue.enabled").value(true))
             .andExpect(jsonPath("$.items[0].newValue.rolloutPercentage").value(30))

@@ -1,5 +1,6 @@
 package dev.a2zrr.flagbox.flag;
 
+import dev.a2zrr.flagbox.apikey.AccessGuard;
 import dev.a2zrr.flagbox.common.web.Actors;
 import dev.a2zrr.flagbox.common.web.PageResponse;
 import dev.a2zrr.flagbox.project.Project;
@@ -33,26 +34,30 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/projects/{project}")
-@Tag(name = "Flags", description = "Flags and their per-environment configs: enabled state, rollout percentage and targeting rules.")
+@Tag(name = "Flags", description = "Flags and their per-environment configs: enabled state, rollout percentage and targeting rules. Creating, changing and deleting flag definitions needs a global admin key; a key scoped to an environment can change that environment's config.")
 public class FlagController {
 
     private static final String SLUG = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 
     private final ProjectService projects;
     private final FlagService flags;
+    private final AccessGuard access;
 
-    public FlagController(ProjectService projects, FlagService flags) {
+    public FlagController(ProjectService projects, FlagService flags, AccessGuard access) {
         this.projects = projects;
         this.flags = flags;
+        this.access = access;
     }
 
     @GetMapping("/flags")
     @Operation(summary = "List flags", description = "Paginated, sorted by key. Archived flags are hidden unless includeArchived=true.")
     public PageResponse<FlagResponse> list(
             @PathVariable("project") String projectKey,
+            Authentication authentication,
             @RequestParam(defaultValue = "false") boolean includeArchived,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        access.requireProjectAccess(authentication, projectKey);
         Project project = projects.get(projectKey);
         return PageResponse.of(
             flags.list(project, includeArchived, PageRequest.of(page, size, Sort.by("key"))),
@@ -60,12 +65,13 @@ public class FlagController {
     }
 
     @PostMapping("/flags")
-    @Operation(summary = "Create a flag", description = "The flag starts disabled, with 100% rollout and no rules, in every environment.")
+    @Operation(summary = "Create a flag", description = "The flag starts disabled, with 100% rollout and no rules, in every environment. Global admin key only.")
     public ResponseEntity<FlagResponse> create(@PathVariable("project") String projectKey,
                                                @Valid @RequestBody CreateFlagRequest request,
                                                Authentication authentication) {
+        access.requireGlobal(authentication);
         Project project = projects.get(projectKey);
-        dev.a2zrr.flagbox.flag.Flag flag = flags.create(project, request.key(), request.name(),
+        Flag flag = flags.create(project, request.key(), request.name(),
             request.description(), Actors.nameOf(authentication));
         return ResponseEntity.created(URI.create("/api/v1/projects/" + projectKey + "/flags/" + flag.getKey()))
             .body(FlagResponse.from(flag));
@@ -73,16 +79,19 @@ public class FlagController {
 
     @GetMapping("/flags/{flag}")
     @Operation(summary = "Get a flag")
-    public FlagResponse get(@PathVariable("project") String projectKey, @PathVariable("flag") String key) {
+    public FlagResponse get(@PathVariable("project") String projectKey, @PathVariable("flag") String key,
+                            Authentication authentication) {
+        access.requireProjectAccess(authentication, projectKey);
         return FlagResponse.from(flags.get(projects.get(projectKey), key));
     }
 
     @PatchMapping("/flags/{flag}")
-    @Operation(summary = "Update a flag's name, description or archived state")
+    @Operation(summary = "Update a flag's name, description or archived state. Global admin key only.")
     public FlagResponse update(@PathVariable("project") String projectKey,
                                @PathVariable("flag") String key,
                                @Valid @RequestBody UpdateFlagRequest request,
                                Authentication authentication) {
+        access.requireGlobal(authentication);
         Project project = projects.get(projectKey);
         return FlagResponse.from(flags.update(project, key, request.name(), request.description(),
             request.archived(), Actors.nameOf(authentication)));
@@ -90,10 +99,11 @@ public class FlagController {
 
     @DeleteMapping("/flags/{flag}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a flag", description = "Deletes the flag and its configs. Audit history is kept. Archive instead to keep the flag.")
+    @Operation(summary = "Delete a flag", description = "Deletes the flag and its configs. Audit history is kept. Archive instead to keep the flag. Global admin key only.")
     public void delete(@PathVariable("project") String projectKey,
                        @PathVariable("flag") String key,
                        Authentication authentication) {
+        access.requireGlobal(authentication);
         flags.delete(projects.get(projectKey), key, Actors.nameOf(authentication));
     }
 
@@ -102,8 +112,10 @@ public class FlagController {
     public PageResponse<FlagConfigResponse> listConfigs(
             @PathVariable("project") String projectKey,
             @PathVariable("environment") String environmentKey,
+            Authentication authentication,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         Project project = projects.get(projectKey);
         return PageResponse.of(
             flags.listConfigs(project, environmentKey, PageRequest.of(page, size, Sort.by("flag.key"))),
@@ -114,7 +126,9 @@ public class FlagController {
     @Operation(summary = "Get a flag config in an environment")
     public FlagConfigResponse getConfig(@PathVariable("project") String projectKey,
                                         @PathVariable("environment") String environmentKey,
-                                        @PathVariable("flag") String flagKey) {
+                                        @PathVariable("flag") String flagKey,
+                                        Authentication authentication) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         return FlagConfigResponse.from(flags.getConfig(projects.get(projectKey), environmentKey, flagKey));
     }
 
@@ -127,6 +141,7 @@ public class FlagController {
                                            @PathVariable("flag") String flagKey,
                                            @Valid @RequestBody UpdateFlagConfigRequest request,
                                            Authentication authentication) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         Project project = projects.get(projectKey);
         return FlagConfigResponse.from(flags.updateConfig(project, environmentKey, flagKey, request.enabled(),
             request.rolloutPercentage(), request.rules(), Actors.nameOf(authentication)));

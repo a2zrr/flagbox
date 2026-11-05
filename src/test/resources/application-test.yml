@@ -1,0 +1,4 @@
+# Test-only bootstrap key. The integration tests register it as the global admin key.
+flagbox:
+  bootstrap:
+    admin-key: fbx_admin_test-bootstrap-0123456789abcdefghijk

@@ -19,6 +19,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+flagbox:
+  bootstrap:
+    # Global admin key registered on first startup. Must start with fbx_admin_.
+    # Ignored once a global admin key exists.
+    admin-key: ${FLAGBOX_BOOTSTRAP_ADMIN_KEY:}
+
 server:
   port: ${PORT:8080}
   error:
@@ -47,6 +53,15 @@ spring:
 logging:
   level:
     dev.a2zrr.flagbox: DEBUG
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: ecs
 ---
 spring:
   config:

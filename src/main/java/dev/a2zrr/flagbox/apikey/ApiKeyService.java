@@ -41,6 +41,17 @@ public class ApiKeyService {
         return new CreatedApiKey(key, generated.raw());
     }
 
+    /** Registers a global admin key from its raw value. Only the bootstrap process calls this. */
+    @Transactional
+    public ApiKey createGlobalAdmin(String rawKey, String name) {
+        ApiKey key = keys.save(ApiKey.global(name, rawKey.substring(0, ApiKeyGenerator.PREFIX_LENGTH),
+            ApiKeyHasher.sha256Hex(rawKey)));
+        audit.record(AuditEntityType.API_KEY, null, null, String.valueOf(key.getId()), AuditAction.CREATE,
+            "bootstrap", null, fields("name", name, "type", ApiKeyType.ADMIN.name(),
+                "keyPrefix", key.getKeyPrefix()));
+        return key;
+    }
+
     @Transactional(readOnly = true)
     public Page<ApiKey> list(Project project, Environment environment, Pageable pageable) {
         return keys.findByProjectAndEnvironment(project, environment, pageable);

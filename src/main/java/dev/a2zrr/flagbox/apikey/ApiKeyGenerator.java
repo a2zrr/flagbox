@@ -10,6 +10,9 @@ public final class ApiKeyGenerator {
     private static final int SECRET_BYTES = 32;
     private static final int DISPLAY_CHARS = 6;
 
+    /** Length of the display prefix of an ADMIN key, for example {@code fbx_admin_AbC123}. */
+    public static final int PREFIX_LENGTH = ApiKeyType.ADMIN.prefix().length() + DISPLAY_CHARS;
+
     private ApiKeyGenerator() {
     }
 

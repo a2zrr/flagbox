@@ -15,7 +15,8 @@ public record EvaluationContext(String userId, Map<String, String> attributes) {
 
     public EvaluationContext {
         if (userId == null || userId.isBlank() || userId.length() > 128) {
-            throw new IllegalArgumentException("userId must be 1 to 128 characters");
+            throw new IllegalArgumentException("userId must be 1 to 128 characters. For logged-out users, send a "
+                + "stable anonymous ID (a cookie or device ID) so their rollout bucket does not change");
         }
         if (attributes == null) {
             attributes = Collections.emptyMap();

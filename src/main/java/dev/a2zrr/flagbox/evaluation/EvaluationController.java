@@ -56,13 +56,19 @@ public class EvaluationController {
 
     private static ApiKeyPrincipal scopeOf(Authentication authentication) {
         if (authentication instanceof ApiKeyAuthentication apiKey) {
-            return apiKey.getPrincipal();
+            ApiKeyPrincipal principal = apiKey.getPrincipal();
+            if (!principal.isGlobal()) {
+                return principal;
+            }
+            throw new AccessDeniedException("Evaluation needs a key scoped to an environment; global keys have none");
         }
         throw new AccessDeniedException("An API key is required to evaluate flags");
     }
 
     public record ContextRequest(
-        @NotBlank @Size(max = 128) String userId,
+        @NotBlank(message = "is required. Send a stable user ID. For logged-out users, send a stable anonymous ID "
+            + "(a cookie or device ID) so their rollout bucket does not change between requests.")
+        @Size(max = 128) String userId,
         @Size(max = EvaluationContext.MAX_ATTRIBUTES) Map<@NotBlank @Size(max = 64) String, @Size(max = 256) String> attributes) {
 
         EvaluationContext toDomain() {

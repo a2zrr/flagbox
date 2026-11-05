@@ -14,4 +14,6 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
     Page<ApiKey> findByProjectAndEnvironment(Project project, Environment environment, Pageable pageable);
 
     Optional<ApiKey> findByIdAndProjectAndEnvironment(Long id, Project project, Environment environment);
+
+    boolean existsByProjectIsNullAndType(ApiKeyType type);
 }

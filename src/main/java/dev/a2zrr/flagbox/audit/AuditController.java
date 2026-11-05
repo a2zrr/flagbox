@@ -1,5 +1,6 @@
 package dev.a2zrr.flagbox.audit;
 
+import dev.a2zrr.flagbox.apikey.AccessGuard;
 import dev.a2zrr.flagbox.common.web.PageResponse;
 import dev.a2zrr.flagbox.project.Project;
 import dev.a2zrr.flagbox.project.ProjectService;
@@ -11,6 +12,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,10 +26,12 @@ public class AuditController {
 
     private final ProjectService projects;
     private final AuditService audit;
+    private final AccessGuard access;
 
-    public AuditController(ProjectService projects, AuditService audit) {
+    public AuditController(ProjectService projects, AuditService audit, AccessGuard access) {
         this.projects = projects;
         this.audit = audit;
+        this.access = access;
     }
 
     @GetMapping
@@ -36,8 +40,10 @@ public class AuditController {
     public PageResponse<AuditEntryResponse> history(
             @PathVariable("project") String projectKey,
             @PathVariable("flag") String flagKey,
+            Authentication authentication,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        access.requireProjectAccess(authentication, projectKey);
         Project project = projects.get(projectKey);
         return PageResponse.of(
             audit.flagHistory(project.getId(), flagKey,

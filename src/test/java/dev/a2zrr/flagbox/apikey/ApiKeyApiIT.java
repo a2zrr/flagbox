@@ -14,7 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import dev.a2zrr.flagbox.support.AdminKeyTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.junit.jupiter.api.AfterEach;
@@ -23,7 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@WithMockUser(username = "admin", roles = "ADMIN")
+@Import(AdminKeyTestConfig.class)
 class ApiKeyApiIT extends PostgresIntegrationTest {
 
     private static final MediaType JSON = MediaType.APPLICATION_JSON;
@@ -42,7 +43,7 @@ class ApiKeyApiIT extends PostgresIntegrationTest {
     @BeforeEach
     @AfterEach
     void resetTables() {
-        jdbc.execute("TRUNCATE audit_logs, projects RESTART IDENTITY CASCADE");
+        jdbc.execute("DELETE FROM audit_logs; DELETE FROM projects");
     }
 
     @Test

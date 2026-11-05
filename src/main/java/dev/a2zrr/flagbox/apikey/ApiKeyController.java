@@ -34,17 +34,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/projects/{project}/environments/{environment}/api-keys")
-@Tag(name = "API keys", description = "Keys scoped to one project and environment. The raw key is shown only once, at creation.")
+@Tag(name = "API keys", description = "Keys scoped to one project and environment. The raw key is shown only once, at creation. A key can manage keys only in its own environment.")
 public class ApiKeyController {
 
     private final ProjectService projects;
     private final EnvironmentService environments;
     private final ApiKeyService apiKeys;
+    private final AccessGuard access;
 
-    public ApiKeyController(ProjectService projects, EnvironmentService environments, ApiKeyService apiKeys) {
+    public ApiKeyController(ProjectService projects, EnvironmentService environments, ApiKeyService apiKeys,
+                            AccessGuard access) {
         this.projects = projects;
         this.environments = environments;
         this.apiKeys = apiKeys;
+        this.access = access;
     }
 
     @PostMapping
@@ -53,6 +56,7 @@ public class ApiKeyController {
                                                         @PathVariable("environment") String environmentKey,
                                                         @Valid @RequestBody CreateApiKeyRequest request,
                                                         Authentication authentication) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         Project project = projects.get(projectKey);
         Environment environment = environments.get(project, environmentKey);
         CreatedApiKey created = apiKeys.create(project, environment, request.name(), request.type(),
@@ -67,8 +71,10 @@ public class ApiKeyController {
     public PageResponse<ApiKeyResponse> list(
             @PathVariable("project") String projectKey,
             @PathVariable("environment") String environmentKey,
+            Authentication authentication,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         Project project = projects.get(projectKey);
         Environment environment = environments.get(project, environmentKey);
         return PageResponse.of(
@@ -83,6 +89,7 @@ public class ApiKeyController {
                        @PathVariable("environment") String environmentKey,
                        @PathVariable("id") Long id,
                        Authentication authentication) {
+        access.requireEnvironmentAccess(authentication, projectKey, environmentKey);
         Project project = projects.get(projectKey);
         Environment environment = environments.get(project, environmentKey);
         apiKeys.revoke(project, environment, id, Actors.nameOf(authentication));
